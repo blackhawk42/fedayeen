@@ -69,16 +69,19 @@ El esquema es:
 * user(string, primary key). Simplemente el nombre de usuario. Único y el
 identificador de la cuenta.
 
+* salt(blob). La sal para la generación de la llave.
+
 * master_password(blob). El hash de la llave generada a base de la contraseña
 maestra, la que el usuario definitivamente debe recordar. Cada vez que el usuario
 quiere entrar, derivamos una llave en base a un algoritmo de derivación de
 llave con una sal dada, aplicamos un hash a esa llave, y finalmente guradamos
 ese hash en este lugar.
 
-* salt(blob). La sal para la generación de la llave.
-
 * passwords(blob). Un string en JSON que ha sido cifrado con un algoritmo
 simétrico usando la llave generada, conteniendo todas las contraseñas del usuario.
+
+* blocked(bool). Está el usuario bloqueado? Dadod que esto es SQLite,
+esto será un 1 para sí, 0 para no.
 
 El algoritmo de derivación de llave es pbkdf2_hmac con 100,000 iteraciones.
 El algoritmo de hash es SHA256. El tamaño de la sal es 16 bits. El algoritmo
@@ -93,41 +96,45 @@ mismo lugar que el SAC.
 
 ## Protocolos
 
-### JSON de almacenamiento de contraseñas
+### Formato en JSON de Almacenamiento de Contraseñas
 
-El JSON con las contraseñas será básicamente un arreglo que
-contendrá varios objetos JSON, cada uno de estos objetos representando
-una contraseña.
+Este es un formato para codificar contraseñas e información relevante,
+ya sea para su transmisión o para su almacenamiento pre-cifrado.
 
-La estructura general de estos objetos será:
+
+El formato está basado en JSON (ECMA-404). En términos de dicho estándar,
+consiste en un arreglo conteniendo varios objetos, cada objeto
+representando una contraseña individual con su información relevante.
+Como mínimo, esta información será:
 
 * "service": el nombre del servicio en el que esta contraseña se usa (e.g., Facebook).
 * "user": usuario con el que esta contraseña se usa en el servicio.
-* "password": la contrasela en sí.
+* "password": la contraseña en sí.
+* “lastmodified”: última hora y fecha de modificación de “password”, codificado en un
+	número representando los segundos transcurridos desde el Tiempo Unix (IEEE 103.1)
 
-Por supuesto, es posible extender esto con más campos, pero estos son los
-obligatorios.
 
-Un ejemplo de este formato con dos contraseñas podría ser:
+Por supuesto, es posible extender estos campos, pero los aquí definidos son los obligatorios y necesarios para la funcionalidad de nuestra aplicación.
+Un ejemplo de FJAC siendo usado para codificar dos hipotéticas contraseñas con su información:
+
 
 ```JSON
 [
 	{
 		"service": "Facebook",
 		"user": "mail@example.com",
-		"password": "u5p1duddt63fb2ma1t7y"
+		"password": "u5p1duddt63fb2ma1t7y",
+		“lastmodified”: 1539147600
 	},
 	
 	{
 		"service": "Reddit",
 		"user": "acleverusername",
-		"password": "custompassword"
+		"password": "custompassword",
+		“lastmodified”: 1539233270
 	}
 ]
 ```
-
-Subsecuentemente, todo esto será codificado en un una cadena UTF-8,
-cifrada y almacenada en la BD.
 
 ### Protocolo de comunicación
 
