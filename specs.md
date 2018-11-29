@@ -71,7 +71,7 @@ identificador de la cuenta.
 
 * salt(blob). La sal para la generación de la llave.
 
-* master_password(blob). El hash de la llave generada a base de la contraseña
+* master_key(blob). El hash de la llave generada a base de la contraseña
 maestra, la que el usuario definitivamente debe recordar. Cada vez que el usuario
 quiere entrar, derivamos una llave en base a un algoritmo de derivación de
 llave con una sal dada, aplicamos un hash a esa llave, y finalmente guradamos

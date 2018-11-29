@@ -77,6 +77,9 @@ class RetrieveMessage(PCMessage):
 		self.password = password
 		self.userSize = len(user)
 		self.passwordSize = len(password)
+	
+	def __repr__(self):
+		return 'RetrieveMessage(user: {}, password: {})'.format(self.user, self.password)
 
 class UpdateMessage(PCMessage):
 	def __init__(self, user, password, json):
@@ -87,6 +90,9 @@ class UpdateMessage(PCMessage):
 		self.userSize = len(user)
 		self.passwordSize = len(password)
 		self.json = json
+	
+	def __repr__(self):
+		return 'RetrieveMessage(user: {}, password: {}, json: {})'.format(self.user, self.password, self.json)
 
 class DeleteMessage(PCMessage):
 	def __init__(self, user, password):
@@ -104,32 +110,56 @@ class GenerateMessage(PCMessage):
 	def __init__(self, scheme, size):
 		self.scheme = scheme
 		self.size = size
+	
+	def __repr__(self):
+		return 'GenerateMessage(scheme: {}, size: {})'.format(self.scheme, self.size)
 
 
 # Loading functions for serialization
 
 def __loadCreate__(binary_message):
-	userSize = struct.unpack('@I', binary_message[4:8])[0]
-	passwordSize = struct.unpack('@I', binary_message[8:12])[0]
+	userSize = struct.unpack('!I', binary_message[4:8])[0]
+	passwordSize = struct.unpack('!I', binary_message[8:12])[0]
 	user = binary_message[12:12+userSize].decode('utf-8')
 	password = binary_message[12+userSize:12+userSize+passwordSize].decode('utf-8')
 	
 	return CreateMessage(user, password)
 
 def __loadDelete__(binary_message):
-	userSize = struct.unpack('@I', binary_message[4:8])[0]
-	passwordSize = struct.unpack('@I', binary_message[8:12])[0]
+	userSize = struct.unpack('!I', binary_message[4:8])[0]
+	passwordSize = struct.unpack('!I', binary_message[8:12])[0]
 	user = binary_message[12:12+userSize].decode('utf-8')
 	password = binary_message[12+userSize:12+userSize+passwordSize].decode('utf-8')
 	
 	return DeleteMessage(user, password)
 
+def __loadUpdate__(binary_message):
+	userSize = struct.unpack('!I', binary_message[4:8])[0]
+	passwordSize = struct.unpack('!I', binary_message[8:12])[0]
+	user = binary_message[12:12+userSize].decode('utf-8')
+	password = binary_message[12+userSize:12+userSize+passwordSize].decode('utf-8')
+	json = binary_message[12+userSize+passwordSize:]
+	
+	return UpdateMessage(user, password, json)
 
+def __loadRetrieve__(binary_message):
+	userSize = struct.unpack('!I', binary_message[4:8])[0]
+	passwordSize = struct.unpack('!I', binary_message[8:12])[0]
+	user = binary_message[12:12+userSize].decode('utf-8')
+	password = binary_message[12+userSize:12+userSize+passwordSize].decode('utf-8')
+	
+	return RetrieveMessage(user, password)
+
+def __loadGenerate__(binary_message):
+	scheme = PasswordScheme( struct.unpack('!i', binary_message[4:8])[0] )
+	size = struct.unpack('!I', binary_message[8:12])[0]
+	
+	return GenerateMessage(scheme, size)
 
 def load(binary_message):
 	"""Deserialize a bytes-like objetc into a message"""
 	
-	command = struct.unpack('@i', binary_message[0:4])[0]
+	command = struct.unpack('!i', binary_message[0:4])[0]
 	
 	loadFunction = None
 	
@@ -137,14 +167,22 @@ def load(binary_message):
 		loadFunction = __loadCreate__
 	elif command == Command.DELETE:
 		loadFunction = __loadDelete__
+	elif command == Command.UPDATE:
+		loadFunction = __loadUpdate__
+	elif command == Command.RETRIEVE:
+		loadFunction = __loadRetrieve__
+	elif command == Command.GENERATE:
+		loadFunction = __loadGenerate__
 	
 	if not loadFunction:
 		raise BadRequestException('Not a valid command')
 	
+	print(loadFunction(binary_message))
 	return loadFunction(binary_message)
 
 
 if __name__ == '__main__':
-	message = b'\x04\x00\x00\x00\x07\x00\x00\x00\x04\x00\x00\x00usuariohola'
+	#~ message = b'\x04\x00\x00\x00\x07\x00\x00\x00\x04\x00\x00\x00usuariohola'
+	message = b'\x05\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00'
 	
 	print(load(message))
